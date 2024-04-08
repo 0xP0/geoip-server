@@ -28,6 +28,7 @@ fn parse_args() -> Result<(SocketAddr, String), Box<dyn std::error::Error>> {
     Ok((addr, mmdb_file))
 }
 
+
 async fn run_server(listener: TcpListener, db: Arc<maxminddb::Reader<Mmap>>) -> Result<(), Box<dyn std::error::Error>> {
     println!("Listening on http://{}", listener.local_addr()?);
     loop {
@@ -50,9 +51,21 @@ async fn run_server(listener: TcpListener, db: Arc<maxminddb::Reader<Mmap>>) -> 
     }
 }
 
+
+
 async fn handle_request(ip: &str, db: Arc<maxminddb::Reader<Mmap>>) -> Result<Response<Full<Bytes>>, Error> {
     let body: Full<Bytes>;
     let status: StatusCode;
+
+    //如果health-check 包含就可以 不用等于 ip 返回 ok
+    if ip.contains("health-check") {
+        status = StatusCode::OK;
+        body = Full::new(Bytes::from("{\"status\": \"ok\"}"));
+        return Ok(Response::builder()
+        .header(CONTENT_TYPE, "application/json")
+        .status(status)
+        .body(body).unwrap());
+    }
 
     if let Ok(ipaddr) = ip.parse::<IpAddr>() {
         let entry: Option<geoip2::City> = db.lookup(ipaddr).ok();
